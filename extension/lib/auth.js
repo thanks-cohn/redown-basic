@@ -1,20 +1,7 @@
 import { CONFIG } from "../config.js";
 
-export const AUTH_SCOPES = Object.freeze({
-  google: ["https://www.googleapis.com/auth/drive.file"],
-  dropbox: ["account_info.read", "files.metadata.read", "files.content.write"],
-  onedrive: ["Files.ReadWrite", "User.Read", "offline_access"],
-});
-const ENDPOINTS = {
-  dropbox: {
-    authorize: "https://www.dropbox.com/oauth2/authorize",
-    token: "https://api.dropboxapi.com/oauth2/token",
-  },
-  onedrive: {
-    authorize: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-    token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-  },
-};
+import { createIdentity, REQUIRED_SCOPES, BASIC_STORAGE } from "./identity.js";
+export const AUTH_SCOPES = REQUIRED_SCOPES;
 const fail = (
   code,
   message,
@@ -27,10 +14,6 @@ const b64 = (value) =>
     .replace(/=+$/, "");
 const normalized = (s) =>
   s.toLowerCase().replace(/^https:\/\/graph.microsoft.com\//, "");
-const granted = (id, scopes) =>
-  AUTH_SCOPES[id]
-    .filter((s) => s !== "offline_access")
-    .every((s) => scopes.map(normalized).includes(normalized(s)));
 
 export function createAuth({
   chrome,
@@ -39,6 +22,11 @@ export function createAuth({
   now = Date.now,
   crypto = globalThis.crypto,
 }) {
+  const deployment = createIdentity({ chrome, config });
+  const granted = (id, scopes) =>
+    deployment.profile.scopes[id]
+      .filter((s) => s !== "offline_access")
+      .every((s) => scopes.map(normalized).includes(normalized(s)));
   const pending = new Map(),
     epochs = new Map();
   const generation = (id) => epochs.get(id) || 0;
@@ -50,7 +38,7 @@ export function createAuth({
         "Wait for Sign In to finish, then retry.",
       );
   };
-  const key = (id) => `basic:auth:${id}`;
+  const key = (id) => `${BASIC_STORAGE.authPrefix}${id}`;
   function valid(id) {
     if (!Object.hasOwn(AUTH_SCOPES, id))
       throw fail(
@@ -64,28 +52,25 @@ export function createAuth({
       accessLevel: "TRUSTED_CONTEXTS",
     });
   }
-  const load = async (id) => (await chrome.storage.local.get(key(id)))[key(id)];
+  const load = async (id) => {
+    const record = (await chrome.storage.local.get(key(id)))[key(id)];
+    if (record && record.binding !== deployment.binding(id))
+      throw fail(
+        "AUTH_PROFILE_CHANGED",
+        "The saved authorization belongs to a different or older deployment profile.",
+        "Sign In or Reconnect explicitly. Existing History and counts are preserved.",
+      );
+    return record;
+  };
   async function save(id, value, ticket = generation(id)) {
     await secure();
     checkGeneration(id, ticket);
-    await chrome.storage.local.set({ [key(id)]: value });
+    await chrome.storage.local.set({
+      [key(id)]: { ...value, binding: deployment.binding(id) },
+    });
   }
   function client(id) {
-    const value =
-      id === "google"
-        ? chrome.runtime.getManifest().oauth2?.client_id
-        : config.clientIds?.[id];
-    if (
-      typeof value !== "string" ||
-      !value ||
-      /CONFIGURE|REPLACE|placeholder/i.test(value)
-    )
-      throw fail(
-        "OAUTH_CONFIG_REQUIRED",
-        "This independent extension needs its own OAuth client configuration.",
-        "Follow README OAuth setup for REDOWN Basic, reload, and Sign In.",
-      );
-    return value;
+    return deployment.registration(id).clientId;
   }
   async function http(url, options = {}) {
     let response;
@@ -169,7 +154,7 @@ export function createAuth({
     return identity;
   }
   async function exchange(id, parameters, oldScopes) {
-    const response = await http(ENDPOINTS[id].token, {
+    const response = await http(deployment.registration(id).token, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: client(id), ...parameters }),
@@ -218,7 +203,7 @@ export function createAuth({
     try {
       result = await chrome.identity.getAuthToken({
         interactive,
-        scopes: AUTH_SCOPES.google,
+        scopes: deployment.profile.scopes.google,
         enableGranularPermissions: true,
       });
     } catch {
@@ -232,7 +217,7 @@ export function createAuth({
     const accessToken = typeof result === "string" ? result : result?.token;
     const scopes =
       typeof result === "string"
-        ? AUTH_SCOPES.google
+        ? deployment.profile.scopes.google
         : result?.grantedScopes || [];
     if (!accessToken)
       throw fail(
@@ -265,8 +250,20 @@ export function createAuth({
     client(id);
     const ticket = generation(id);
     await secure();
-    if (id === "google") return google(false);
     let record = await load(id);
+    if (id === "google") {
+      if (!record?.connected)
+        throw fail(
+          "AUTH_REQUIRED",
+          "Sign In to authorize this Basic edition explicitly.",
+        );
+      if (!granted(id, record.scopes || []))
+        throw fail(
+          "AUTH_SCOPE_REQUIRED",
+          "Required upload permissions are missing.",
+        );
+      return google(false);
+    }
     if (!record?.connected || !record.refreshToken)
       throw fail(
         "AUTH_REQUIRED",
@@ -287,7 +284,9 @@ export function createAuth({
         {
           grant_type: "refresh_token",
           refresh_token: record.refreshToken,
-          ...(id === "onedrive" ? { scope: AUTH_SCOPES[id].join(" ") } : {}),
+          ...(id === "onedrive"
+            ? { scope: deployment.profile.scopes[id].join(" ") }
+            : {}),
         },
         record.scopes,
       );
@@ -305,9 +304,10 @@ export function createAuth({
   }
   async function state(id) {
     valid(id);
-    const record = await load(id);
-    let reason, nextAction;
+    let record, reason, nextAction;
     try {
+      deployment.registration(id);
+      record = await load(id);
       await single(`token:${id}:${generation(id)}`, () => getToken(id));
       return {
         provider: id,
@@ -327,6 +327,13 @@ export function createAuth({
       connected: Boolean(record?.connected),
       authorized: Boolean(record && granted(id, record.scopes || [])),
       ready: false,
+      setupRequired: [
+        "OAUTH_CONFIG_REQUIRED",
+        "OAUTH_MANIFEST_MISMATCH",
+        "OAUTH_REDIRECT_MISMATCH",
+        "EXTENSION_ID_MISMATCH",
+        "IDENTITY_CONFIG_INVALID",
+      ].includes(reason),
       reason,
       nextAction,
     };
@@ -350,7 +357,7 @@ export function createAuth({
         await google(true);
         return state(id);
       }
-      const redirect = chrome.identity.getRedirectURL(id);
+      const redirect = deployment.registration(id).redirect;
       const nonce = b64(crypto.getRandomValues(new Uint8Array(32))),
         verifier = b64(crypto.getRandomValues(new Uint8Array(32))),
         started = now();
@@ -360,7 +367,7 @@ export function createAuth({
           new TextEncoder().encode(verifier),
         ),
       );
-      const authorize = new URL(ENDPOINTS[id].authorize);
+      const authorize = new URL(deployment.registration(id).authorize);
       authorize.search = new URLSearchParams({
         client_id: clientId,
         response_type: "code",
@@ -368,7 +375,7 @@ export function createAuth({
         code_challenge: challenge,
         code_challenge_method: "S256",
         state: nonce,
-        scope: AUTH_SCOPES[id].join(" "),
+        scope: deployment.profile.scopes[id].join(" "),
         ...(id === "dropbox"
           ? { token_access_type: "offline" }
           : { response_mode: "query" }),
@@ -426,7 +433,9 @@ export function createAuth({
         code: callback.searchParams.get("code"),
         code_verifier: verifier,
         redirect_uri: redirect,
-        ...(id === "onedrive" ? { scope: AUTH_SCOPES[id].join(" ") } : {}),
+        ...(id === "onedrive"
+          ? { scope: deployment.profile.scopes[id].join(" ") }
+          : {}),
       });
       if (!token.refreshToken)
         throw fail(
@@ -445,11 +454,17 @@ export function createAuth({
     async reconnect(id) {
       valid(id);
       epochs.set(id, generation(id) + 1);
-      if (id === "google") {
+      let ownRecord;
+      try {
+        ownRecord = await load(id);
+      } catch {
+        /* Preserve incompatible records until explicit replacement. */
+      }
+      if (id === "google" && ownRecord?.connected) {
         try {
           const t = await chrome.identity.getAuthToken({
             interactive: false,
-            scopes: AUTH_SCOPES.google,
+            scopes: deployment.profile.scopes.google,
           });
           const value = typeof t === "string" ? t : t?.token;
           if (value)
@@ -460,6 +475,21 @@ export function createAuth({
       }
       await chrome.storage.local.remove(key(id));
       return connect(id);
+    },
+    getStatus: state,
+    checkReadiness: state,
+    async disconnect(id) {
+      valid(id);
+      epochs.set(id, generation(id) + 1);
+      await chrome.storage.local.remove(key(id));
+      return {
+        provider: id,
+        connected: false,
+        authorized: false,
+        ready: false,
+        reason: "AUTH_DISCONNECTED",
+        nextAction: "Sign In to authorize this edition again.",
+      };
     },
     token: (id) => single(`token:${id}:${generation(id)}`, () => getToken(id)),
   };

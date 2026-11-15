@@ -61,7 +61,14 @@ async function fixture({
       },
       sendMessage: async ({ op, input }) => {
         calls.push({ op, input });
-        if (failures[op]) return { ok: false, error: typeof failures[op] === "function" ? failures[op]() : failures[op] };
+        if (failures[op])
+          return {
+            ok: false,
+            error:
+              typeof failures[op] === "function"
+                ? failures[op]()
+                : failures[op],
+          };
         let value;
         if (op === "settings.get") value = settings;
         else if (op === "settings.update")
@@ -528,17 +535,91 @@ test("optional diagnostics storage warning is visible without changing truthful 
   assert.match(f.document.querySelector(".record-state").textContent, /Saved/);
 });
 
-
-test('revoked authorization refresh failure updates readiness and preserves next action', async () => {
+test("revoked authorization refresh failure updates readiness and preserves next action", async () => {
   const status = { google: { connected: true, authorized: true, ready: true } };
-  const f = await fixture({ status, failures: { 'auth.refresh': () => {
-    status.google = { connected: false, authorized: false, ready: false, reason: 'AUTH_REVOKED', nextAction: 'Reconnect to approve uploads.' };
-    return { code: 'AUTH_REVOKED', message: 'Upload authorization was revoked.', nextAction: 'Reconnect to approve uploads.' };
-  } } });
-  const card = f.document.querySelector('[data-provider=google]');
-  assert.match(card.querySelector('.readiness').textContent, /Ready to Save/);
-  [...card.querySelectorAll('button')].find((button) => button.textContent === 'Refresh').click(); await flush();
-  assert.match(card.querySelector('.readiness').textContent, /Not connected/);
-  assert.match(card.querySelector('.reason').textContent, /Reconnect to approve uploads/);
-  assert.match(f.document.getElementById('feedback').textContent, /AUTH_REVOKED.*Reconnect to approve uploads/);
+  const f = await fixture({
+    status,
+    failures: {
+      "auth.refresh": () => {
+        status.google = {
+          connected: false,
+          authorized: false,
+          ready: false,
+          reason: "AUTH_REVOKED",
+          nextAction: "Reconnect to approve uploads.",
+        };
+        return {
+          code: "AUTH_REVOKED",
+          message: "Upload authorization was revoked.",
+          nextAction: "Reconnect to approve uploads.",
+        };
+      },
+    },
+  });
+  const card = f.document.querySelector("[data-provider=google]");
+  assert.match(card.querySelector(".readiness").textContent, /Ready to Save/);
+  [...card.querySelectorAll("button")]
+    .find((button) => button.textContent === "Refresh")
+    .click();
+  await flush();
+  assert.match(card.querySelector(".readiness").textContent, /Not connected/);
+  assert.match(
+    card.querySelector(".reason").textContent,
+    /Reconnect to approve uploads/,
+  );
+  assert.match(
+    f.document.getElementById("feedback").textContent,
+    /AUTH_REVOKED.*Reconnect to approve uploads/,
+  );
+});
+
+test("sun/moon toggle preserves SVG, accessible target label, saved preference and keyboard button semantics", async () => {
+  const f = await fixture();
+  const button = f.dom.window.document.getElementById("theme-toggle");
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.type, "button");
+  assert.equal(button.querySelectorAll("svg").length, 1);
+  assert.equal(button.getAttribute("aria-label"), "Switch to dark mode");
+  button.click();
+  await flush();
+  assert.equal(f.settings().theme, "dark");
+  assert.equal(button.querySelectorAll("svg").length, 1);
+  assert.equal(button.getAttribute("aria-label"), "Switch to light mode");
+  button.click();
+  await flush();
+  assert.equal(f.settings().theme, "light");
+  assert.equal(button.querySelectorAll("svg").length, 1);
+  const css = await readFile(
+    new URL("../extension/shelf.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /theme-sun[\s\S]*transition/);
+});
+test("incomplete deployment shows Setup required, blocks doomed Sign In, keeps independent GO TO", async () => {
+  const f = await fixture({
+    status: Object.fromEntries(
+      ["google", "dropbox", "onedrive"].map((id) => [
+        id,
+        {
+          setupRequired: true,
+          reason: "OAUTH_CONFIG_REQUIRED",
+          nextAction: "Configure public profile and rebuild.",
+        },
+      ]),
+    ),
+  });
+  for (const card of f.dom.window.document.querySelectorAll(".provider-card")) {
+    const sign = card.querySelector(".auth-action");
+    assert.equal(sign.disabled, true);
+    assert.equal(sign.textContent, "Setup required");
+    sign.click();
+  }
+  assert.equal(f.calls.filter((c) => c.op === "auth.connect").length, 0);
+  const card = f.dom.window.document.querySelector(".provider-card");
+  [...card.querySelectorAll("button")]
+    .find((b) => b.textContent === "GO TO")
+    .click();
+  await flush();
+  assert.ok(f.calls.some((c) => c.op === "providers.goTo"));
 });

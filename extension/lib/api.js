@@ -9,6 +9,7 @@ export const CONTRACTS = Object.freeze({
   "auth.connect": { provider: "provider" },
   "auth.reconnect": { provider: "provider" },
   "auth.refresh": { provider: "provider" },
+  "auth.disconnect": { provider: "provider" },
   "saves.start": {
     provider: "provider",
     sourceUrl: "string",
@@ -103,6 +104,8 @@ export function createApi({ store, auth, coordinator, chrome }) {
       case "auth.reconnect":
         await auth.reconnect(input.provider);
         return status(input.provider);
+      case "auth.disconnect":
+        return auth.disconnect(input.provider);
       case "auth.refresh":
         await auth.refresh(input.provider);
         return status(input.provider);

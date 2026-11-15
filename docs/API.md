@@ -31,6 +31,7 @@ All operations below are available only to trusted internal callers through that
 | `providers.goTo` | `{provider}` | Opens that provider's fixed website in a tab. No OAuth or upload effect. |
 | `auth.connect` | `{provider}` | Explicit interactive extension sign-in and permission approval; returns safe status. |
 | `auth.reconnect` | `{provider}` | Targeted explicit reauthorization for expired/revoked/missing permission; returns safe status. |
+| `auth.disconnect` | `{provider}` | Clears only this Basic edition’s local authorization record; does not revoke provider access or clear Chrome’s shared token cache. Returns disconnected status. |
 | `auth.refresh` | `{provider}` | Reuses a valid token or silently renews when supported; never blindly opens OAuth. Returns status/recovery reason. |
 | `saves.start` | `{provider,sourceUrl,hostUrl?,filename?,requestId?}` | Creates a new durable attempt and runs readiness/source/upload/proof. Returns attempt outcome, not just queued acknowledgement. HTTP(S) sources only. Omit requestId for a distinct new user-requested save; supply a stable requestId to deduplicate one operation. |
 | `saves.getAttempt` | `{id}` | Current attempt record or unavailable. No implicit retry. |
@@ -98,3 +99,7 @@ await chrome.runtime.sendMessage({api:1,op:'counter.get',input:{}});
 await chrome.runtime.sendMessage({api:1,op:'history.list',input:{page:1,pageSize:40}});
 await chrome.runtime.sendMessage({api:1,op:'diagnostics.getForAttempt',input:{id:'attempt-id',page:1}});
 ```
+
+## Portable registration boundary
+
+Statuses may include `setupRequired:true`: registration, runtime extension ID, callback or Google manifest mismatch blocks Sign In before OAuth. `EXTENSION_ID_MISMATCH`, `OAUTH_MANIFEST_MISMATCH`, `OAUTH_REDIRECT_MISMATCH`, `IDENTITY_CONFIG_INVALID` explain setup; `AUTH_PROFILE_CHANGED` requires explicit sign-in for an old/unbound credential. `auth.disconnect` clears Basic’s local record only and cancels stale in-flight updates, without provider revocation or shared Chrome cache deletion. Internal auth also exposes getStatus/checkReadiness aliases. See [profiles](PORTABLE_DEPLOYMENT_PROFILES.md).

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createIdentity } from "../extension/lib/identity.js";
 import { createAuth, AUTH_SCOPES } from "../extension/lib/auth.js";
 const NOW = 1700000000000;
 const json = (value, status = 200) =>
@@ -61,8 +62,10 @@ function setup({
       },
     },
     runtime: {
+      id: "independent",
       getManifest: () => ({
         oauth2: {
+          scopes: AUTH_SCOPES.google,
           client_id: noConfig
             ? "CONFIGURE_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
             : "123-own.apps.googleusercontent.com",
@@ -123,17 +126,16 @@ function setup({
     if (url.includes("dropboxapi")) return json({ account_id: account });
     return json({ id: url.includes("root?") ? "root" : account });
   };
-  return {
-    auth: createAuth({
+  const config = {
+    clientIds: noConfig ? {} : { dropbox: "own-key", onedrive: "own-client" },
+  };
+  if (initial)
+    store["basic:auth:" + id].binding = createIdentity({
       chrome,
-      fetch,
-      config: {
-        clientIds: noConfig
-          ? {}
-          : { dropbox: "own-key", onedrive: "own-client" },
-      },
-      now: () => NOW,
-    }),
+      config,
+    }).binding(id);
+  return {
+    auth: createAuth({ chrome, fetch, config, now: () => NOW }),
     calls,
     popups,
     native,
@@ -277,4 +279,15 @@ for (const id of ["dropbox", "onedrive"])
     f.releaseToken();
     await rejection;
     assert.equal((await current).ready, true);
+  });
+for (const id of ["dropbox", "onedrive"])
+  test(`${id}: disconnect cancels in-flight consent without modifying provider/legacy state`, async () => {
+    const f = setup({ id, holdFirstToken: true });
+    const connecting = f.auth.connect(id);
+    const rejected = assert.rejects(connecting, { code: "AUTH_CHANGED" });
+    await f.waitForToken;
+    await f.auth.disconnect(id);
+    f.releaseToken();
+    await rejected;
+    assert.equal(f.store["basic:auth:" + id], undefined);
   });

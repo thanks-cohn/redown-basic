@@ -63,7 +63,12 @@ export function createShelf(document, chrome) {
   function applyTheme() {
     document.documentElement.dataset.theme = settings.theme || "light";
     const dark = settings.theme === "dark";
-    $("theme-toggle").textContent = dark ? "Light mode" : "Dark mode";
+    const label = dark ? "Switch to light mode" : "Switch to dark mode";
+    $("theme-toggle").querySelector(".theme-label").textContent = dark
+      ? "Light mode"
+      : "Dark mode";
+    $("theme-toggle").setAttribute("aria-label", label);
+    $("theme-toggle").title = label;
     $("theme-toggle").setAttribute("aria-pressed", String(dark));
   }
   function fillSettings() {
@@ -152,7 +157,9 @@ export function createShelf(document, chrome) {
       connect.addEventListener("click", () =>
         action(connect, async () => {
           try {
-            await call(connect.dataset.operation || "auth.connect", { provider: provider.id });
+            await call(connect.dataset.operation || "auth.connect", {
+              provider: provider.id,
+            });
           } finally {
             await refreshProviders();
           }
@@ -196,13 +203,15 @@ export function createShelf(document, chrome) {
     for (const status of statuses) {
       const card = cards.get(status.provider || status.id);
       if (!card) continue;
-      const text = status.ready
-        ? "Ready to Save"
-        : status.authorized
-          ? "Authorized · refresh required"
-          : status.connected
-            ? "Connected · approval required"
-            : "Not connected";
+      const text = status.setupRequired
+        ? "Setup required"
+        : status.ready
+          ? "Ready to Save"
+          : status.authorized
+            ? "Authorized · refresh required"
+            : status.connected
+              ? "Connected · approval required"
+              : "Not connected";
       const readiness = card.querySelector(".readiness");
       readiness.className = `readiness ${status.ready ? "success" : "uncertain"}`;
       readiness.lastElementChild.textContent = text;
@@ -212,9 +221,12 @@ export function createShelf(document, chrome) {
           ? "Authorization supports an upload attempt. Each save is verified separately."
           : "Sign in to authorize this extension.");
       const connect = card.querySelector(".auth-action");
-      connect.textContent = status.connected
-        ? "Reconnect / Approve"
-        : "Sign In";
+      connect.disabled = !!status.setupRequired;
+      connect.textContent = status.setupRequired
+        ? "Setup required"
+        : status.connected
+          ? "Reconnect / Approve"
+          : "Sign In";
       connect.dataset.operation = status.connected
         ? "auth.reconnect"
         : "auth.connect";

@@ -5,6 +5,9 @@ permissions:
 jobs:
   local-validation:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile: [standalone, redown-hosted]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,4 +17,4 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check
       - run: npm test
-      - run: npm run package
+      - run: npm run package -- --profile ${{ matrix.profile }}

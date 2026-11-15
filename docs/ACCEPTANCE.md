@@ -41,3 +41,7 @@ For each provider independently, in a Chrome environment permitting unpacked ext
 5. Keep local diagnostics private; redact browsing data before attaching evidence. Record provider, time, browser/version, fixture digest, object proof and result without credentials/session URLs/private response bodies. Delete live test objects only with separate explicit authorization.
 
 If any provider remains unverified or fails, keep the release blocked. Passing unit tests, browser-only UI checks, installability, login, queueing or upload-start requests do not close this gate.
+
+## Portable Shelf continuation
+
+The earlier 118-test report above is the pre-portability baseline. The new sequential Phase A run passes **135/135 tests**, with no failures/skips; details, before/after behavior and live blockers are in [PORTABLE_VERIFICATION.md](PORTABLE_VERIFICATION.md). The same save engine remains checksum-pinned. Real installed side-panel/native-menu and live provider tests remain BLOCKED, not passed.

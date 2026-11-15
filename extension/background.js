@@ -45,6 +45,21 @@ export function clickedInput(info, tab) {
     hostUrl: info.pageUrl || tab?.url || "",
   };
 }
+// Register the standard native opener once; fallback only when unsupported/restricted.
+export async function configureShelf(chrome) {
+  if (chrome.sidePanel?.setPanelBehavior) {
+    try {
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+      return "side-panel";
+    } catch {
+      /* A restricted platform can still use an explicit extension tab. */
+    }
+  }
+  chrome.action.onClicked.addListener(() => {
+    void chrome.tabs.create({ url: chrome.runtime.getURL("shelf.html") });
+  });
+  return "tab-fallback";
+}
 export function boot(chrome) {
   const ready = (async () => {
     await chrome.storage.local.setAccessLevel({
@@ -96,10 +111,7 @@ export function boot(chrome) {
         void chrome.action.setBadgeBackgroundColor({ color: "#b91c1c" });
       });
   });
-  chrome.action.onClicked.addListener(() => {
-    void chrome.action.setBadgeText({ text: "" });
-    void chrome.runtime.openOptionsPage();
-  });
+  void configureShelf(chrome);
   chrome.runtime.onInstalled.addListener(() => {
     void installMenus(chrome).catch(() => {});
   });

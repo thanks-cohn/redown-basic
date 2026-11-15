@@ -8,11 +8,14 @@ import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
 
 const root = resolve(import.meta.dirname, "..");
+const appRoot = resolve(
+  process.env.BASIC_EXTENSION_PATH || join(root, "extension"),
+);
 const output = resolve(
   process.argv[2] || join(tmpdir(), "redown-basic-browser-smoke"),
 );
 await mkdir(output, { recursive: true });
-await rm(join(output, 'evidence.json'), { force: true }); // Never leave a stale passing report after failure.
+await rm(join(output, "evidence.json"), { force: true }); // Never leave a stale passing report after failure.
 const profile = await mkdtemp(join(tmpdir(), "redown-basic-chromium-"));
 const records = [
   {
@@ -51,9 +54,7 @@ const mock = `globalThis.chrome={runtime:{id:'fixture',getManifest:()=>({version
 let s=globalThis.fixtureSettings??={theme:'light',pageSize:40,expansionScope:'none',expansionComponent:'image',diagnosticsEnabled:true,diagnosticsCap:4000};
 const records=${JSON.stringify(records)};
 const value=op==='settings.get'?s:op==='settings.update'?(globalThis.fixtureSettings={...s,...input}):op==='counter.get'?{count:24}:op==='providers.list'?[{provider:'google',connected:true,authorized:true,ready:true},{provider:'dropbox',connected:false,authorized:false,ready:false},{provider:'onedrive',connected:true,authorized:false,ready:false,reason:'Upload permission needs approval.'}]:op==='history.list'?{items:records,page:1,pageSize:40,pages:1,total:3}:op==='diagnostics.list'?{items:[{id:1,timestamp:new Date().toISOString(),attemptId:'fixture-failure',provider:'dropbox',stage:'AUTH_CHECK',outcome:'Failure',code:'AUTH_REQUIRED',cause:'Extension upload authorization is required.'}],page:1,pageSize:40,pages:1,total:1}:{};return {ok:true,value};}}};`;
-const html = (
-  await readFile(join(root, "extension/shelf.html"), "utf8")
-).replace(
+const html = (await readFile(join(appRoot, "shelf.html"), "utf8")).replace(
   '<script type="module" src="shelf.js"></script>',
   `<script>${mock}</script><script type="module" src="shelf.js"></script>`,
 );
@@ -63,6 +64,8 @@ const routes = {
   ...Object.fromEntries(
     [
       "lib/presentation.js",
+      "lib/identity.js",
+      "config.js",
       "lib/store.js",
       "lib/coordinator.js",
       "lib/common.js",
@@ -82,7 +85,11 @@ const server = createServer(async (req, res) => {
         "Content-Type",
         req.url.endsWith(".css") ? "text/css" : "text/javascript",
       );
-      res.end(await readFile(join(root, routes[req.url])));
+      res.end(
+        await readFile(
+          join(appRoot, routes[req.url].replace(/^extension\//, "")),
+        ),
+      );
     } else {
       res.statusCode = 404;
       res.end();
@@ -105,7 +112,7 @@ const browser = spawn(
     "--remote-debugging-port=0",
     "--no-first-run",
     "--no-default-browser-check",
-    `--load-extension=${join(root, "extension")}`,
+    `--load-extension=${appRoot}`,
     "about:blank",
   ],
   {
@@ -278,6 +285,7 @@ try {
     await evaluate('document.getElementById("save-count").textContent'),
     "24",
   );
+  evidence.renderObservedMs = await evaluate("Math.round(performance.now())");
   evidence.checks.push(
     "Three consistent cards, mocked readiness states and confirmed counter rendered in Chromium.",
   );
@@ -311,6 +319,17 @@ try {
   );
   await capture("providers-dark");
   await capture("providers-mobile", 390, 844);
+  await capture("shelf-narrow", 360, 844);
+  assert.equal(
+    await evaluate('document.querySelectorAll("#theme-toggle svg").length'),
+    1,
+  );
+  assert.equal(
+    await evaluate(
+      'document.getElementById("theme-toggle").getAttribute("aria-label")',
+    ),
+    "Switch to light mode",
+  );
   await evaluate('document.querySelector("[data-view=history]").click()');
   await wait(80);
   assert.equal(

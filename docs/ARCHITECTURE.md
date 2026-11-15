@@ -46,3 +46,7 @@ OAuth registrations belong to Basic's extension identity. PKCE callbacks require
 ## Deliberate exclusions
 
 No folders/explorer/destination manager, complex queue, background resume engine, Cloudflare Worker, R2, billing, original counter, mascot, telemetry recorder, service framework or native helper. See [EXTRACTION.md](EXTRACTION.md). Separate modules isolate browser authentication, source acquisition, provider transfer, durable state and presentation without parallel pipelines.
+
+## Portable Shelf and identity boundary
+
+Toolbar opening uses the standard Chrome sidePanel behavior; there is no normal competing action listener. Unsupported/restricted API gets one honest extension-tab fallback. The sun/moon SVG changes appearance via existing theme settings, independently of auth. `lib/identity.js` validates public profiles, runtime identity, callbacks, manifest/scopes and registration-bound local state. Build-time manifest generation lives in `scripts/build.mjs`; changing deployment never edits coordinator/provider upload logic. `lib/store.js` shares a constant Basic namespace while preserving its existing data. Static configuration is not provider readiness.

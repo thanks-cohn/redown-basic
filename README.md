@@ -6,10 +6,12 @@ An independent Manifest V3 Chrome extension for saving supported web files to Go
 
 ## Install for development
 
-1. Run `npm ci`, then `npm test` and `npm run check` from this repository.
-2. Configure the three OAuth registrations described below. Client IDs are public registration identifiers, not secrets. Never put client secrets or tokens into the repository.
-3. Open Chrome's Extensions page, enable Developer mode, choose **Load unpacked**, and select the `extension/` directory. Administrator policy must permit unpacked extensions; do not bypass managed-browser policy.
-4. Open REDOWN Basic from the toolbar. Use each card's **Sign In** to authorize extension upload access. Check **Ready to Save**, then right-click an accessible HTTP(S) file link or image and choose **Save to Google Drive**, **Save to Dropbox**, or **Save to OneDrive**.
+1. Run `npm ci --ignore-scripts`, `npm test`, and `npm run check`.
+2. Configure public registrations in `deployment/standalone.json`; run `npm run build -- --profile standalone` and `npm run package -- --profile standalone`.
+3. In an isolated Chrome profile permitting Developer mode, load `dist/standalone/extension/` unpacked. Toolbar click opens the real Chrome **side-panel Shelf**. A restricted/unsupported side-panel API falls back explicitly to an extension tab.
+4. Use Sign In only after public registration setup; **Setup required** disables doomed login attempts. Toggle light/dark with the keyboard-accessible sun/moon control.
+
+See [portable deployment profiles](docs/PORTABLE_DEPLOYMENT_PROFILES.md) for both build variants, field definitions, exact redirects, storage isolation and live gates.
 
 **GO TO only opens the provider website.** A working website session does not grant the extension OAuth access. Refresh reuses a valid token or silently renews it; Reconnect/Approve requests missing or expired permission interactively. A failed or uncertain save needs an explicit new click after checking the provider for a possible existing object.
 
@@ -17,7 +19,7 @@ An independent Manifest V3 Chrome extension for saving supported web files to Go
 
 REDOWN Basic must have its own stable extension ID and registrations. Its redirect URLs and tokens are independent of REDOWN. Do not copy REDOWN's manifest key, extension ID, client IDs, or local storage. Development extension IDs can change when the unpacked path changes. Register the ID actually shown by Chrome; a release identity needs its own approved registration.
 
-Set Dropbox and OneDrive public client IDs in `extension/config.js`; set Google’s Chrome Extension client ID in `extension/manifest.json` under `oauth2.client_id` (the Google config.js entry is informational). After changing local configuration, reload the extension. Provider app approval, consent-screen testing restrictions, tenant policy, and rate/quota limits still apply.
+Set the provider public client IDs and expected extension identity in the selected `deployment/*.json` profile. Build generates compatible manifest OAuth fields and runtime configuration; no save engine, Shelf or provider adapter edits are required. Incomplete profiles remain truthful and unready. Provider app approval, consent-screen restrictions, tenant policy, and quota still apply.
 
 | Provider | Registration and permission |
 | --- | --- |

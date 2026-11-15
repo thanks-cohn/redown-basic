@@ -1,5 +1,35 @@
-// Public OAuth identifiers only. Never put a client secret here.
-// Google uses manifest.json oauth2.client_id; these clients belong to Basic.
-export const CONFIG = Object.freeze({
-  clientIds: Object.freeze({ google: "", dropbox: "", onedrive: "" }),
-});
+// Generated public deployment profile. Configure deployment/*.json and run npm run build.
+export const CONFIG = {
+  profile: "standalone",
+  extensionIdentity: {
+    expectedId: "",
+    publicKey: "",
+  },
+  clientIds: {
+    google: "",
+    dropbox: "",
+    onedrive: "",
+  },
+  scopes: {
+    google: ["https://www.googleapis.com/auth/drive.file"],
+    dropbox: [
+      "account_info.read",
+      "files.metadata.read",
+      "files.content.write",
+    ],
+    onedrive: ["Files.ReadWrite", "User.Read", "offline_access"],
+  },
+  platforms: {
+    google: "chrome-identity",
+    dropbox: "pkce",
+    onedrive: "pkce",
+  },
+  authority: {
+    microsoftHost: "https://login.microsoftonline.com",
+    microsoftTenant: "common",
+  },
+  redirects: {
+    dropbox: "",
+    onedrive: "",
+  },
+};

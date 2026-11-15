@@ -1,3 +1,4 @@
+import { BASIC_STORAGE } from "./identity.js";
 import { fail, TERMINAL } from "./common.js";
 export const DEFAULTS = Object.freeze({
   theme: "light",
@@ -47,7 +48,7 @@ export function validateSettings(input) {
 }
 export async function openStore(
   indexedDB = globalThis.indexedDB,
-  name = "redown-basic",
+  name = BASIC_STORAGE.database,
 ) {
   const opening = indexedDB.open(name, 1);
   opening.onupgradeneeded = () => {
