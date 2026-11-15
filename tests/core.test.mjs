@@ -559,3 +559,6 @@ for(const encoding of ['utf16le','utf16be'])test(`source rejects disguised HTML 
  const text='<html><body>login</body></html>',buffer=new Uint8Array(2+text.length*2),le=encoding==='utf16le';buffer.set(le?[255,254]:[254,255]);for(let i=0;i<text.length;i++)buffer[2+i*2+(le?0:1)]=text.charCodeAt(i);
  await assert.rejects(acquireSource(input,{fetch:async()=>new Response(buffer,{headers:{'content-type':'application/octet-stream'}})}),{code:'SOURCE_HTML_REJECTED'});
 });
+test('browser AbortError numeric code maps to actionable source timeout',async()=>{
+ await assert.rejects(acquireSource(input,{timeoutMs:1,fetch:async(url,{signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))}),{code:'SOURCE_TIMEOUT'});
+});

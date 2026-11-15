@@ -10,7 +10,7 @@
 
 ## Local evidence
 
-Local tests use mocks/fixtures and do not contact real cloud accounts. Source inspection of REDOWN is separately recorded in [EXTRACTION.md](EXTRACTION.md); its historical counts are not Basic test results. Current implementation run: **117 tests passed, 0 failed, 0 skipped** (`npm test`). The checks below are local evidence, not provider acceptance. The current browser permits ordinary HTML/DOM fixtures but its managed `ExtensionInstallBlocklist: ["*"]` policy blocks unpacked extension installation. This is a concrete blocker for installed-extension worker/native-menu acceptance; no policy bypass was attempted. A Shelf fixture does not exercise native extension APIs or OAuth.
+Local tests use mocks/fixtures and do not contact real cloud accounts. Source inspection of REDOWN is separately recorded in [EXTRACTION.md](EXTRACTION.md); its historical counts are not Basic test results. Current implementation run: **118 tests passed, 0 failed, 0 skipped** (`npm test`). The checks below are local evidence, not provider acceptance. The current browser permits ordinary HTML/DOM fixtures but its managed `ExtensionInstallBlocklist: ["*"]` policy blocks unpacked extension installation. This is a concrete blocker for installed-extension worker/native-menu acceptance; no policy bypass was attempted. A Shelf fixture does not exercise native extension APIs or OAuth.
 
 API documentation contract tests currently check operation-name parity plus focused behavior cases; they do not establish exhaustive schema/output conformance.
 
@@ -20,7 +20,7 @@ Required local coverage: native three-menu dispatch, source bytes and filename/t
 
 | Command / check | Result | Evidence boundary |
 | --- | --- | --- |
-| `npm test` | 117 tests; 117 passed; 0 failed; 0 skipped | Node tests with mocked provider/browser dependencies, fake IndexedDB and DOM fixtures. |
+| `npm test` | 118 tests; 118 passed; 0 failed; 0 skipped | Node tests with mocked provider/browser dependencies, fake IndexedDB and DOM fixtures. |
 | `npm run check` | Passed | JavaScript syntax and MV3 manifest boundary checks. |
 | `npm run package` | Created `dist/redown-basic.zip` | Unpacked-extension archive produced; client IDs still require independent local configuration. |
 | `git diff --check` | Passed | Whitespace check; not functional proof. |

@@ -167,7 +167,7 @@ export async function acquireSource(
     }
     return { bytes, filename, mime, preview };
   } catch (e) {
-    if (e.code) throw e;
+    if (typeof e.code === "string") throw e;
     throw fail(
       controller.signal.aborted ? "SOURCE_TIMEOUT" : "SOURCE_UNAVAILABLE",
       controller.signal.aborted

@@ -9,6 +9,7 @@ async function walk(path) {
   }
 }
 await walk("extension");
+await walk("docs");
 for (const p of ["README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"])
   files[p] = strToU8(await readFile(p, "utf8"));
 await mkdir("dist", { recursive: true });
