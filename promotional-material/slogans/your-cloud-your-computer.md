@@ -10,6 +10,19 @@ The ambition behind the line is: **your computer doesn't end at the edge of its 
 
 Sell this with **comfort and confidence**, not pressure, jargon, or exaggerated supercomputer claims. REDOWN Basic's actual promise is easy access to the user's chosen cloud storage through familiar right-click actions; do not suggest that buying or using REDOWN Basic alone provides unlimited computational power, free cloud compute or infinite storage.
 
+## The dream behind the REDOWN and Chutey families
+
+We may be a small company, but we can present an enormous, long-imagined aspiration: **the feeling of having the reach of a giant supercomputer from the ordinary computer in front of you.** The viewer doesn't need a huge workstation or a technical background to feel that technology is opening up to them. Their familiar computer becomes a welcoming doorway to the larger world of their own files, storage, content and digital workflows.
+
+This is a **shared emotional umbrella for the REDOWN and Chutey product lines**:
+- **REDOWN / REDOWN Basic:** Make moving content from the web into personal cloud storage feel as natural as saving it on your own machine. The cloud becomes an extension of your computer's reach.
+- **Chutey:** Make collected content and interactions feel playful, personal and accessible. The mascot and drag-and-drop vision make the digital world feel close enough to touch.
+- **Together:** Present an ordinary person's computer as the comfortable entry point into a much larger personal digital environment — the *dream of supercomputer-scale possibility* expressed through simple everyday actions.
+
+**Advertising boundary:** “A giant supercomputer of your own” is a *metaphor for reach and possibility*, not a claim that these extensions supply supercomputer compute capacity, free remote processors, unlimited data or universal transfer support. Never suggest that REDOWN Basic alone makes a low-spec PC as powerful as a supercomputer. When demonstrating, show real supported cloud saves, actual verified file access and confirmed Chutey interactions. If later products genuinely provide cloud compute, advertise those measurable capabilities only after implementation and verification.
+
+**Positioning line to explore:** “You don't need a giant computer to have a bigger world.”
+
 ## Creative voice
 
 - Inviting and reassuring, not technical or grandiose.
